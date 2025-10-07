@@ -1,11 +1,26 @@
-#!/bin/sh
-set -x
+#! /bin/sh
 
-if [ "$(snapctl get daemon)" = "" ]
-then
-  # if no model at all, it's either classic or something is wrong
-  if ! snapctl model > /dev/null || [ "$( snapctl model | awk '/^classic:/ { print $2 }' )" = "true" ]
-  then snapctl set daemon=false
-  else snapctl set daemon=true
-  fi
+cat << EOF >$SNAP_COMMON/.xinitrc
+#! /bin/sh
+
+xhost +localhost
+
+echo "starting Xorg session \$(date)" >\$SNAP_COMMON/session.log
+
+MYHOSTS="\$(snapctl get hosts)"
+if [ -n \$MYHOSTS ]; then
+    if \$(echo \$MYHOSTS|grep -q ,); then
+      MYHOSTS="\$(echo \$MYHOSTS | tr ',' ' ')"
+    fi
+    for host in \$MYHOSTS; do
+      echo "xhost +\$host" >>\$SNAP_COMMON/session.log
+      xhost +\$host
+    done
 fi
+
+xset s off
+xset -dpms
+xset s noblank
+
+sleep infinity
+EOF

@@ -1,29 +1,37 @@
 name: xdmcp-kiosk
-version: git # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
+version: git
+summary: An Xorg server to run on Ubuntu Core allowing to display apps via XDMCP
 description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+  This snap will start an Xorg server on top of ubuntu-frame and allow you to display
+  client appliactions using XDMCP remotely on it.
+  To allow access to remote hosts you need to supply a list of ip addresses that are
+  permitted to show anything via the snap set command like
+  .
+      snap set xdmcp-kiosk hosts=192.168.1.10,192.168.1.20,192.168.1.30
+  .
+  Hosts in this list can the set the DISPLAY variable and spawn applications via XDMCP
+  on the Ubuntu Core machine.
+  .
+  Note that this snap currently requires devmode
 confinement: strict
 compression: lzo
 grade: stable
 base: core24
 
 apps:
-  iot-example-graphical-snap:
+  xdmcp-kiosk:
     command-chain: &_command-chain
       - bin/gpu-2404-wrapper
       - bin/wayland-launch
-    command: &_command usr/bin/X -retro -listen tcp
+    command: &_command usr/bin/startx -- -retro -listen tcp
     plugs: &_plugs
+      - hardware-observe
       - network
       - network-bind
       - opengl
       - wayland
     environment: &_environment
-      XDG_DATA_HOME: $SNAP_USER_DATA
+      XDG_DATA_HOME: $SNAP_DATA
       XDG_DATA_DIRS: $SNAP/usr/share
 
   daemon:
@@ -43,16 +51,22 @@ plugs:
     interface: content
     target: $SNAP/gpu-2404
     default-provider: mesa-2404
+  x11-plug:
+    interface: x11
+
+slots:
+  x11:
 
 environment:
   # Other, generally useful environment settings...
   # XDG config
-  XDG_CACHE_HOME:  $SNAP_USER_COMMON/.cache
-  XDG_CONFIG_HOME: $SNAP_USER_DATA/.config
+  XDG_CACHE_HOME:  $SNAP_COMMON/.cache
+  XDG_CONFIG_HOME: $SNAP_DATA/.config
   XDG_CONFIG_DIRS: $SNAP/etc/xdg
   XDG_DATA_DIRS:   $SNAP/usr/local/share:$SNAP/usr/share
   # XKB config
   XKB_CONFIG_ROOT: $SNAP/usr/share/X11/xkb
+  HOME: $SNAP_COMMON
 
 # The `layout` ensures that files can be found by applications where they are expected by the toolkit or application.
 layout:
@@ -78,13 +92,34 @@ layout:
     bind: $SNAP/usr/share/mime
   /etc/gtk-3.0:
     bind: $SNAP/etc/gtk-3.0
+  /usr/lib/xorg:
+    bind: $SNAP/usr/lib/xorg
+  /var/log:
+    bind: $SNAP_COMMON/log
+  /usr/bin/xkbcomp:
+    symlink: $SNAP/usr/bin/xkbcomp
+  /usr/share/X11:
+    bind: $SNAP/usr/share/X11
+  /etc/X11:
+    bind: $SNAP/etc/X11
+  /usr/bin/X:
+    symlink: $SNAP/usr/bin/X
+  /usr/bin/Xorg:
+    symlink: $SNAP/usr/bin/Xorg
+  /usr/bin/mcookie:
+    bind-file: $SNAP/usr/bin/mcookie
 
 parts:
   x11:
     plugin: nil
     stage-packages:
+      - libinput-bin
+      - util-linux
       - xserver-xorg-core
+      - xserver-xorg-input-libinput
       - x11-xserver-utils
+      - xkb-data
+      - xinit
 
   # gsettings, pixbuf and immodules are not needed by all snaps,
   # but they are so common a requirement include them here
